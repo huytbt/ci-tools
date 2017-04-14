@@ -2,6 +2,7 @@ FROM alexwijn/docker-git-php-composer
 
 MAINTAINER @huytbt
 
-ADD ci-git-process ci-git-process
+COPY ci-git-process /usr/bin/ci-git-process
+RUN chmod 700 /usr/bin/ci-git-process
 
-RUN cp ci-git-process /usr/bin
+ENTRYPOINT ["ci-git-process"]
