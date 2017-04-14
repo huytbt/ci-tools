@@ -4,4 +4,4 @@ MAINTAINER @huytbt
 
 ADD ci-git-process ci-git-process
 
-RUN cp ci-git-process /usr/local/bin
+RUN cp ci-git-process /usr/bin
