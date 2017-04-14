@@ -1,0 +1,54 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * Check branch name
+ */
+$branch = shell_exec('git branch | grep \*');
+$branch = trim(substr($branch, 2));
+
+echo "Checking branch name: \033[35m{$branch}\033[0m\n";
+
+$branchNames = explode('/', $branch);
+$type = $branchNames[0];
+$scope = isset($branchNames[1]) ? $branchNames[1] : '';
+$subject = isset($branchNames[2]) ? $branchNames[2] : '';
+
+if (!in_array($type, ['master', 'develop', 'feat', 'hotfix', 'fix', 'docs', 'style', 'refactor', 'test', 'chore', 'release'])) {
+    echo "Branch name is invalid.\n";
+    exit(1);
+}
+
+if (!in_array($type, ['master', 'develop']) && (empty($scope) || empty($subject))) {
+    echo "\033[31mBranch name MUST contains scope and subject.\033[0m\n";
+    echo "  Format: \033[32m{$type}/scope/short-useful-descriptive-subject \033[0m\n";
+    exit(1);
+}
+
+echo "\033[32mDone!\033[0m\n\n";
+
+/**
+ * Check commit message
+ */
+echo "Checking commits messages\n";
+
+exec('git remote set-branches origin develop 2>&1', $output, $returnValue);
+exec('git fetch --depth 50 origin develop 2>&1', $output, $returnValue);
+exec('git checkout develop 2>&1', $output, $returnValue);
+exec("git checkout {$branch} 2>&1", $output, $returnValue);
+$commitsMessages = shell_exec("git log --pretty=format:\"**------**\n%B\" develop..{$branch}");
+$commitsMessages = explode('**------**', $commitsMessages);
+unset($commitsMessages[0]);
+echo "Number of commits: " . count($commitsMessages) . "\n";
+foreach ($commitsMessages as $message) {
+    if (!preg_match_all('/#([^\s]+)/', $message)) {
+        echo "\033[33m***Warning: Commit message doesn't reference to issue.\033[0m\n";
+        echo "\033[35m";
+        echo $message;
+        echo "\033[0m";
+    }
+}
+echo "\033[32mDone!\033[0m\n\n";
+
+echo "\033[32mGit Process passed!\033[0m\n";
+exit(0);
