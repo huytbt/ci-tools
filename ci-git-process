@@ -1,6 +1,10 @@
 #!/usr/bin/env php
 <?php
 
+if ($argv[1]) {
+    chdir($argv[1]);
+}
+
 /**
  * Check branch name
  */
