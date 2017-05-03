@@ -53,8 +53,28 @@ const checkCommitMessages = async (currentBranch) => {
   await spawnSync('git', ['fetch', 'origin', mainBranch]);
   await spawnSync('git', ['checkout', mainBranch]);
   await spawnSync('git', ['checkout', currentBranch]);
-  const logs = await spawnSync('git', ['log', '--pretty=format:\"**------**\n%B\"', mainBranch + '..' + currentBranch]);
-  console.log(logs.stdout.toString());
+  const logs = await spawnSync('git', ['log', '--pretty=format:**------**%B', mainBranch + '..' + currentBranch]);
+  let commitsMessages = logs.stdout.toString().trim().split('**------**');
+  commitsMessages.splice(0, 1);
+  console.log('Number of commits: ' + commitsMessages.length);
+  let violates = 0;
+  const hashCheck = /#([^\s]+)/gm;
+  const mergeMessage = /Merge branch(.*)of(.*)into/gm;
+  commitsMessages.forEach((message) => {
+    if (hashCheck.test(message)) {
+      if (mergeMessage.test(message)) {
+        return;
+      }
+      violates++;
+      console.log('\n\x1b[31mWarning: Commit message doesn\'t reference to issue.\x1b[0m');
+      console.log('----------\n\x1b[35m' + message + '\x1b[0m\n----------');
+    }
+  });
+
+  if (violates > 0) {
+    console.log('\n\x1b[31mViolates: ' + violates + '\x1b[0m');
+    throw new Error(1);
+  }
 };
 
 const run = async () => {
