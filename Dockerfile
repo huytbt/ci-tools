@@ -1,8 +1,4 @@
-FROM alexwijn/docker-git-php-composer
-
-RUN apt-get install python-software-properties
-RUN curl -sL https://deb.nodesource.com/setup_7.x | sudo -E bash -
-RUN apt-get install nodejs
+FROM eduwass/docker-node-git
 
 MAINTAINER @huytbt
 
