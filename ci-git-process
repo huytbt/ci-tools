@@ -61,7 +61,7 @@ const checkCommitMessages = async (currentBranch) => {
   const hashCheck = /#([^\s]+)/gm;
   const mergeMessage = /Merge branch(.*)of(.*)into/gm;
   commitsMessages.forEach((message) => {
-    if (hashCheck.test(message)) {
+    if (!hashCheck.test(message)) {
       if (mergeMessage.test(message)) {
         return;
       }
