@@ -1,70 +1,87 @@
-#!/usr/bin/env php
-<?php
+#!/usr/bin/env node
 
-$options = [];
-foreach ($argv as $val) {
-    parse_str($val, $output);
-    $options = array_merge($options, $output);
-}
+const execSync = require('child_process').execSync;
+const spawnSync = require('child_process').spawnSync;
 
-/**
- * Check branch name
- */
-$branch = shell_exec('git branch | grep \*');
-$branch = trim(substr($branch, 2));
+const getParams = () => {
+  let params = {};
+  process.argv.forEach((arg) => {
+    const args = arg.split('=');
+    params[args[0]] = args.length > 1 ? args[1] : null;
+  });
+  return params;
+};
 
-echo "Checking branch name: \033[35m{$branch}\033[0m\n";
+const checkBranchName = async () => {
+  const branches = await execSync('git branch');
 
-$branchNames = explode('/', $branch);
-$type = $branchNames[0];
-$scope = isset($branchNames[1]) ? $branchNames[1] : '';
-$subject = isset($branchNames[2]) ? $branchNames[2] : '';
+  const branch = await spawnSync('grep', ['*'], { input: branches });
+  if (branch.error) {
+    throw branch.error;
+  }
+  const currentBranch = branch.stdout.toString().trim().replace('* ', '');
 
-if (!in_array($type, ['master', 'develop', 'feat', 'hotfix', 'fix', 'docs', 'style', 'refactor', 'test', 'chore', 'release'])) {
-    echo "\033[31mBranch name is invalid.\033[0m\n";
-    exit(1);
-}
+  console.log('Checking branch name: \x1b[35m' + currentBranch + '\x1b[0m');
 
-if (!in_array($type, ['master', 'develop']) && (empty($scope) || empty($subject))) {
-    echo "\033[31mBranch name MUST contains scope and subject.\033[0m\n";
-    echo "  Format: \033[32m{$type}/scope/short-useful-descriptive-subject \033[0m\n";
-    exit(1);
-}
+  const currentBranchNames = currentBranch.split('/');
+  const type = currentBranchNames[0];
+  const scope = currentBranchNames.length > 1 ? currentBranchNames[1] : '';
+  const subject = currentBranchNames.length > 2 ? currentBranchNames[2] : '';
 
-echo "\033[32mDone!\033[0m\n\n";
+  if (['master', 'develop', 'feat', 'hotfix', 'fix', 'docs', 'style', 'refactor', 'test', 'chore', 'release'].indexOf(type) < 0) {
+    console.log('\x1b[31mBranch name is invalid.\x1b[0m');
+    throw new Error(1);
+  }
 
-/**
- * Check commit message
- */
-echo "Checking commits messages\n";
+  if (['master', 'develop'].indexOf(type) < 0 && (!scope || !subject)) {
+    console.log('\x1b[31mBranch name MUST contains scope and subject.\x1b[0m');
+    console.log('  Format: \x1b[32m' + type + '/scope/short-useful-descriptive-subject \x1b[0m');
+    throw new Error(1);
+  }
 
-$mainBranch = !empty($options['--branch']) ? $options['--branch'] : 'master';
+  console.log('\x1b[32mDone!\x1b[0m\n');
+  return currentBranch;
+};
 
-exec("git remote set-branches origin {$mainBranch} 2>&1", $output, $returnValue);
-exec("git fetch origin {$mainBranch} 2>&1", $output, $returnValue);
-exec("git checkout {$mainBranch} 2>&1", $output, $returnValue);
-exec("git checkout {$branch} 2>&1", $output, $returnValue);
-$commitsMessages = shell_exec("git log --pretty=format:\"**------**\n%B\" {$mainBranch}..{$branch}");
-$commitsMessages = explode('**------**', $commitsMessages);
-unset($commitsMessages[0]);
-echo "Number of commits: " . count($commitsMessages) . "\n";
-$violates = 0;
-foreach ($commitsMessages as $message) {
-    if (!preg_match_all('/#([^\s]+)/', $message)) {
-        $violates++;
-        echo "\033[33m***Warning: Commit message doesn't reference to issue.\033[0m\n";
-        echo "\033[35m";
-        echo $message;
-        echo "\033[0m";
+const checkCommitMessages = async (currentBranch) => {
+  console.log('Checking commits messages');
+
+  const params = getParams();
+  const mainBranch = params['--branch'] ? params['--branch'] : 'master';
+
+  await spawnSync('git', ['remote', 'set-branches', 'origin', mainBranch]);
+  await spawnSync('git', ['fetch', 'origin', mainBranch]);
+  await spawnSync('git', ['checkout', mainBranch]);
+  await spawnSync('git', ['checkout', currentBranch]);
+  const logs = await spawnSync('git', ['log', '--pretty=format:**------**%B', mainBranch + '..' + currentBranch]);
+  let commitsMessages = logs.stdout.toString().trim().split('**------**');
+  commitsMessages.splice(0, 1);
+  console.log('Number of commits: ' + commitsMessages.length);
+  let violates = 0;
+  const hashCheck = /#([^\s]+)/gm;
+  const mergeMessage = /Merge branch(.*)of(.*)into/gm;
+  commitsMessages.forEach((message) => {
+    if (hashCheck.test(message)) {
+      if (mergeMessage.test(message)) {
+        return;
+      }
+      violates++;
+      console.log('\n\x1b[31mWarning: Commit message doesn\'t reference to issue.\x1b[0m');
+      console.log('----------\n\x1b[35m' + message + '\x1b[0m\n----------');
     }
-}
+  });
 
-if ($violates > 0) {
-    echo "\033[31mViolates: {$violates}\033[0m\n";
-    exit(1);
-}
+  if (violates > 0) {
+    console.log('\n\x1b[31mViolates: ' + violates + '\x1b[0m');
+    throw new Error(1);
+  }
+};
 
-echo "\033[32mDone!\033[0m\n\n";
+const run = async () => {
+  const currentBranch = await checkBranchName();
+  await checkCommitMessages(currentBranch);
+};
 
-echo "\033[32mGit Process passed!\033[0m\n";
-exit(0);
+run()
+  .then(() => process.exit(0))
+  .catch(process.exit);
