@@ -1,4 +1,4 @@
-FROM strongloop/strong-pm
+FROM toancong/api
 
 MAINTAINER @huytbt
 
