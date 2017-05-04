@@ -45,7 +45,7 @@ const checkOptimizeImage = (filename) => {
   const thresholdOptimize = params['--threshold-optimize'] ? params['--threshold-optimize'] : 15;
 
   if (!fs.existsSync('.ci-build')) {
-    execSync('mkdir .ci-build');
+    fs.mkdirSync('.ci-build');
   }
 
   execSync('imagemin "' + filename + '" > ".ci-build/' + filename + '"');
