@@ -1,0 +1,11 @@
+language: php
+
+php:
+- 5.4
+
+script:
+  - php ci-git-process
+
+notifications:
+  on_success: always
+  on_failure: always
