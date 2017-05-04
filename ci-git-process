@@ -90,4 +90,6 @@ run()
     console.log('\x1b[32mGit Process passed!\x1b[0m');
     process.exit(0);
   })
-  .catch(process.exit);
+  .catch(() => {
+    process.exit(1);
+  });
