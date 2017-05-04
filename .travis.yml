@@ -1,0 +1,14 @@
+language: node_js
+node_js:
+  - "7"
+
+before_script:
+  - npm install --global imagemin-cli
+  - mkdir .ci-build
+
+script:
+  - node ci-image-optimize
+
+notifications:
+  on_success: always
+  on_failure: always
