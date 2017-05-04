@@ -3,6 +3,7 @@
 const fs = require("fs");
 const execSync = require('child_process').execSync;
 const spawnSync = require('child_process').spawnSync;
+const crypto = require('crypto');
 
 const getParams = () => {
   let params = {};
@@ -35,7 +36,12 @@ const getCommitedFiles = async () => {
   await spawnSync('git', ['checkout', currentBranch]);
 
   const logs = await spawnSync('git', ['log', '--pretty=', '--name-only', mainBranch + '..' + currentBranch]);
-  const commitFiles = logs.stdout.toString().trim().split('\n');
+  let commitFiles = logs.stdout.toString().trim().split('\n');
+
+  // remove duplicates
+  commitFiles = commitFiles.filter((value, index, self) => {
+    return self.indexOf(value) === index;
+  });
 
   return commitFiles;
 };
@@ -44,9 +50,21 @@ const checkOptimizeImage = (filename) => {
   const params = getParams();
   const thresholdOptimize = params['--threshold-optimize'] ? params['--threshold-optimize'] : 15;
 
-  execSync('imagemin "' + filename + '" > ".ci-build/' + filename + '"');
+  if (!fs.existsSync('.ci-build')) {
+    fs.mkdirSync('.ci-build');
+  }
+
+  if (!fs.existsSync(filename)) {
+    return true;
+  }
+
+  const buildfilename = crypto.createHmac('sha256', filename)
+    .update('I love coding')
+    .digest('hex');
+
+  execSync('imagemin "' + filename + '" > ".ci-build/' + buildfilename + '"');
   const originSize = getFilesizeInBytes(filename);
-  const optimizedSize = getFilesizeInBytes('.ci-build/' + filename);
+  const optimizedSize = getFilesizeInBytes('.ci-build/' + buildfilename);
   const optimizedPercent = (originSize - optimizedSize) / originSize * 100;
 
   if (optimizedPercent >= thresholdOptimize) {
@@ -61,10 +79,6 @@ const checkCommitedFiles = async () => {
   const files = await getCommitedFiles();
 
   console.log('Checking commited files: ' + files.length + ' file(s)');
-
-  if (!fs.existsSync('.ci-build')) {
-    fs.mkdirSync('.ci-build');
-  }
 
   let violates = 0;
   files.forEach((file) => {
