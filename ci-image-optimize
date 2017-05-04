@@ -1,0 +1,93 @@
+#!/usr/bin/env node
+
+const fs = require("fs");
+const execSync = require('child_process').execSync;
+const spawnSync = require('child_process').spawnSync;
+
+const getParams = () => {
+  let params = {};
+  process.argv.forEach((arg) => {
+    const args = arg.split('=');
+    params[args[0]] = args.length > 1 ? args[1] : null;
+  });
+  return params;
+};
+
+const getFilesizeInBytes = (filename) => {
+  const stats = fs.statSync(filename);
+  const fileSizeInBytes = stats.size;
+  return fileSizeInBytes;
+};
+
+const getCommitedFiles = async () => {
+  const branches = await execSync('git branch');
+  const branch = await spawnSync('grep', ['*'], { input: branches });
+  if (branch.error) {
+    throw branch.error;
+  }
+  const params = getParams();
+  const currentBranch = branch.stdout.toString().trim().replace('* ', '');
+  const mainBranch = params['--branch'] ? params['--branch'] : 'master';
+
+  await spawnSync('git', ['remote', 'set-branches', 'origin', mainBranch]);
+  await spawnSync('git', ['fetch', 'origin', mainBranch]);
+  await spawnSync('git', ['checkout', mainBranch]);
+  await spawnSync('git', ['checkout', currentBranch]);
+
+  const logs = await spawnSync('git', ['log', '--pretty=', '--name-only', mainBranch + '..' + currentBranch]);
+  const commitFiles = logs.stdout.toString().trim().split('\n');
+
+  return commitFiles;
+};
+
+const checkOptimizeImage = (filename) => {
+  const params = getParams();
+  const thresholdOptimize = params['--threshold-optimize'] ? params['--threshold-optimize'] : 15;
+
+  if (!fs.existsSync('.ci-build')) {
+    execSync('mkdir .ci-build');
+  }
+
+  execSync('imagemin "' + filename + '" > ".ci-build/' + filename + '"');
+  const originSize = getFilesizeInBytes(filename);
+  const optimizedSize = getFilesizeInBytes('.ci-build/' + filename);
+  const optimizedPercent = (originSize - optimizedSize) / originSize * 100;
+
+  if (optimizedPercent >= thresholdOptimize) {
+    console.log('\x1b[33mCompressing ' + filename + ' could save ' + ((originSize - optimizedSize) / 1024).toFixed(2) + 'KiB (' + optimizedPercent.toFixed(2) + '% reduction)\x1b[0m');
+    return false;
+  }
+
+  return true;
+};
+
+const checkCommitedFiles = async () => {
+  const files = await getCommitedFiles();
+
+  console.log('Checking commited files: ' + files.length + ' file(s)');
+
+  let violates = 0;
+  files.forEach((file) => {
+    const check = checkOptimizeImage(file);
+    if (!check) {
+      violates++;
+    }
+  });
+
+  if (violates > 0) {
+    console.log('\n\x1b[31mViolates: ' + violates + '\x1b[0m');
+    throw new Error(1);
+  }
+
+  console.log('\x1b[32mDone!\x1b[0m\n');
+  return true;
+};
+
+checkCommitedFiles()
+  .then(() => {
+    console.log('\x1b[32mImage Optimize passed!\x1b[0m');
+    process.exit(0);
+  })
+  .catch(() => {
+    process.exit(1);
+  });
