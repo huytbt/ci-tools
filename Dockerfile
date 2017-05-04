@@ -6,6 +6,8 @@ MAINTAINER @huytbt
 RUN apt-get update && \
 apt-get install -y git
 
+RUN npm install --global imagemin-cli
+
 COPY ci-git-process /usr/bin/ci-git-process
 RUN chmod 700 /usr/bin/ci-git-process
 
