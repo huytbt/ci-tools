@@ -58,8 +58,8 @@ const checkCommitMessages = async (currentBranch) => {
   commitsMessages.splice(0, 1);
   console.log('Number of commits: ' + commitsMessages.length + ' (compare with ' + mainBranch + ')');
   let violates = 0;
-  const hashCheck = /#([^\s]+)/gm;
-  const mergeMessage = /Merge branch(.*)of(.*)into/gm;
+  const hashCheck = /#([\d]+)/;
+  const mergeMessage = /Merge branch(.*)of(.*)into/;
   commitsMessages.forEach((message) => {
     if (!hashCheck.test(message)) {
       if (mergeMessage.test(message)) {
