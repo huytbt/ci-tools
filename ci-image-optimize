@@ -38,6 +38,10 @@ const getCommitedFiles = async () => {
   const logs = await spawnSync('git', ['log', '--pretty=', '--name-only', mainBranch + '..' + currentBranch]);
   let commitFiles = logs.stdout.toString().trim().split('\n');
 
+  if (commitFiles.length === 1 && commitFiles[0].trim() === '') {
+    return [];
+  }
+
   // remove duplicates
   commitFiles = commitFiles.filter((value, index, self) => {
     return self.indexOf(value) === index;
