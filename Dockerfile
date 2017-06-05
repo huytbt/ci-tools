@@ -7,6 +7,7 @@ RUN apt-get update && \
 apt-get install -y git
 
 RUN npm install --global imagemin-cli
+RUN npm install --global imagemin-gifsicle
 RUN npm install --global yarn
 
 COPY ci-git-process /usr/bin/ci-git-process
